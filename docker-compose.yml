@@ -31,14 +31,16 @@ services:
       - "5672:5672"
       - "15672:15672"
     volumes:
-      - ./rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_volume:/var/lib/rabbitmq
     restart: on-failure
   database:
     image: postgres:15
     container_name: database
     env_file:
-      - ./postgres_data/.env
+      - ./app/.env
     volumes:
-      - ./postgres_data/data/:/var/lib/postgresql/data
+      - postgres_volume:/var/lib/postgresql/data
     restart: unless-stopped
-
+volumes:
+  rabbitmq_volume:
+  postgres_volume:
