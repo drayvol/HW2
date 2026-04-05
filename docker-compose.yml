@@ -6,8 +6,10 @@ services:
     env_file:
       - ./app/.env
     depends_on:
-      - database
-      - rabbitmq
+      database:
+          condition: service_healthy
+      rabbitmq:
+          condition: service_started
     volumes:
       - ./app/src/:/app/src
     restart: unless-stopped
@@ -40,6 +42,11 @@ services:
       - ./app/.env
     volumes:
       - postgres_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 3s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 volumes:
   rabbitmq_volume:

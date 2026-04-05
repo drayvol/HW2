@@ -1,13 +1,8 @@
-import os
-from flask import Flask
+from init_db import init_db
 
-app = Flask(__name__)
-
-@app.route("/")
-def index():
-    return "Hello, World!"
+def main() -> None:
+    init_db()
+    print("База данных успешно инициализирована")
 
 if __name__ == "__main__":
-    host = os.getenv("APP_HOST", "0.0.0.0")
-    port = int(os.getenv("APP_PORT", 8000))
-    app.run(host=host, port=port)
+    main()
