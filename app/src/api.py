@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
+from starlette import status
+
 from routes.auth import auth_route
 from routes.users import users_route
 from routes.balance import balance_route
@@ -27,6 +31,55 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": exc.status_code,
+                    "message": exc.detail,
+                }
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "error": {
+                    "code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "message": "Validation error",
+                    "details": exc.errors(),
+                }
+            },
+        )
+
+    @app.exception_handler(Exception)
+    async def internal_exception_handler(request: Request, exc: Exception):
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "message": "Internal server error",
+                }
+            },
+        )
+
+    @app.get("/", tags=["root"])
+    def root() -> dict[str, str]:
+        return {
+            "message": f"{settings.APP_NAME} is running",
+            "version": settings.API_VERSION,
+        }
+
+    @app.get("/health", tags=["health"])
+    def healthcheck() -> dict[str, str]:
+        return {"status": "ok"}
+
     #register routes
     app.include_router(auth_route, prefix="/auth", tags=["auth"])
     app.include_router(users_route, prefix="/users", tags=["users"])
