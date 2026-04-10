@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "ML Service"
     DEBUG: bool = False
+    API_VERSION: str = "1.0.0"
 
     @property
     def database_url(self) -> str:

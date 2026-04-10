@@ -3,6 +3,6 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-EXPOSE 8000
+EXPOSE 8080
 COPY . .
-CMD ["python", "/app/src/main.py"]
+CMD ["python", "/app/src/api.py"]
