@@ -1,0 +1,13 @@
+sqlalchemy
+asyncpg
+psycopg
+psycopg2-binary
+alembic
+pydantic
+pydantic-settings
+sqlmodel
+starlette
+fastapi
+uvicorn
+pika
+email-validator
