@@ -11,3 +11,5 @@ fastapi
 uvicorn
 pika
 email-validator
+python-multipart
+requests

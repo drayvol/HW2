@@ -179,7 +179,7 @@ class TaskService:
         return task
 
     @staticmethod
-    def process_task(session: Session, task: TaskORM) -> ResultORM:
+    def process_task(session: Session, task: TaskORM,output:str) -> ResultORM:
         if task.status == TaskStatus.COMPLETED:
             raise ValueError("Задача уже обработана")
 
@@ -197,7 +197,6 @@ class TaskService:
                 task=task,
             )
 
-            output = f"Processed by model {model.name}"
             task.complete()
 
             result = ResultORM(
