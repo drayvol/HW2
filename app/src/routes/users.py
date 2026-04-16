@@ -2,10 +2,20 @@ from fastapi import APIRouter, Body, HTTPException,status,Depends
 from schemas.user import UserResponse
 from services.services import UserService
 from database.database import get_session
+from auth.authenticate import authenticate
 
 
 
 users_route= APIRouter()
+
+@users_route.get("/me")
+def get_me(current_user = Depends(authenticate)):
+    return {
+        "email": current_user.email,
+        "id": current_user.id
+    }
+
+
 @users_route.get(
 "/{user_id}",
     response_model=UserResponse,

@@ -4,14 +4,15 @@ from schemas.predict import PredictResponse,PredictResult
 from services.services import UserService, MLModelService,TaskService
 from database.database import get_session
 from services.rm.rm import send_task
+from auth.authenticate import authenticate
 
 import logging
 logger = logging.getLogger(__name__)
 
 predict_route = APIRouter()
-@predict_route.post("/{user_id}", response_model=PredictResponse)
-async def predict(user_id:int, model_id:int = Form(...), task_name:str = Form(...), image:UploadFile=File(...), session = Depends(get_session)):
-    user=UserService.get_by_id(session,user_id)
+@predict_route.post("/me", response_model=PredictResponse)
+async def predict(model_id:int = Form(...), task_name:str = Form(...), image:UploadFile=File(...), current_user=Depends(authenticate), session = Depends(get_session)):
+    user=UserService.get_by_id(session,current_user.id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -70,5 +71,17 @@ def result(task_id: int, data: PredictResult, session = Depends(get_session)):
     except ValueError as e:
         session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+@predict_route.get("/{task_id}/result")
+def get_result(task_id: int, current_user=Depends(authenticate), session=Depends(get_session)):
+    task = TaskService.get_task_by_id(session, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return {
+        "status": task.status.value,
+        "result": task.result.output if task.result else None
+    }
 
 
