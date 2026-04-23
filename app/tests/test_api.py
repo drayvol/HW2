@@ -33,7 +33,7 @@ def test_signin(client: TestClient):
         "email": "signin@test.com",
         "password": "StrongPass123!",
     }
-    signin_response = client.post("/auth/signup", json=credentials)
+    client.post("/auth/signup", json=credentials)
     signin_response = client.post(
         "/auth/signin",
         data={"username": credentials["email"], "password": credentials["password"]},
@@ -41,18 +41,26 @@ def test_signin(client: TestClient):
     assert signin_response.status_code == 200
 
 
-
-def test_repeat_signin(client:TestClient):
+def test_repeat_signin(client: TestClient):
     credentials = {
         "email": "repeat@test.com",
         "password": "StrongPass123!",
     }
+
     client.post("/auth/signup", json=credentials)
-    repeat_signin_response = client.post(
+
+    first_response = client.post(
         "/auth/signin",
         data={"username": credentials["email"], "password": credentials["password"]},
     )
-    assert repeat_signin_response.status_code == 200
+    second_response = client.post(
+        "/auth/signin",
+        data={"username": credentials["email"], "password": credentials["password"]},
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
 
 def test_get_me(client: TestClient):
     credentials = {
@@ -76,9 +84,7 @@ def test_duplicate_signup(client: TestClient):
         "password": "StrongPass123!",
     }
 
-    first_signup = client.post("/auth/signup", json=credentials)
-    assert first_signup.status_code == 201
-
+    client.post("/auth/signup", json=credentials)
     duplicate_signup = client.post("/auth/signup", json=credentials)
     assert duplicate_signup.status_code == 409
     assert duplicate_signup.json()["error"]["message"] == "User with this email already exists"
@@ -164,6 +170,7 @@ def test_balance_not_charged_before_result(client: TestClient, auth_headers: dic
         headers=auth_headers,
     )
     response = client.get("/balance/me", headers=auth_headers)
+    assert response.status_code == 200
     assert response.json()["balance"] == 50
 
 
@@ -179,6 +186,7 @@ def test_result_saved_after_worker_response(client: TestClient, auth_headers: di
     client.post(f"/predict/{task_id}/result", json={"latex": "x^2 + y^2 = z^2"})
 
     response = client.get(f"/predict/{task_id}/result", headers=auth_headers)
+    assert response.status_code == 200
     assert response.json()["status"] == "completed"
     assert response.json()["result"] == "x^2 + y^2 = z^2"
 
@@ -195,27 +203,35 @@ def test_balance_charged_after_result_saved(client: TestClient, auth_headers: di
     client.post(f"/predict/{task_id}/result", json={"latex": "x^2 + y^2 = z^2"})
 
     response = client.get("/balance/me", headers=auth_headers)
+    assert response.status_code == 200
     assert response.json()["balance"] == 40
 
 
 
 
-def test_predict_invalid_input_does_not_charge_balance(client: TestClient, auth_headers: dict[str, str]):
-    top_up_response = client.post("/balance/me/top-up", json={"amount": 50}, headers=auth_headers)
-    assert top_up_response.status_code == 200
-
-    invalid_model_response = client.post(
+def test_predict_invalid_model_returns_404(client: TestClient, auth_headers: dict[str, str]):
+    client.post("/balance/me/top-up", json={"amount": 50}, headers=auth_headers)
+    response = client.post(
         "/predict/me",
         data={"model_id": "999", "task_name": "invalid-model"},
         files={"image": ("formula.png", b"fake-image-content", "image/png")},
         headers=auth_headers,
     )
-    assert invalid_model_response.status_code == 404
-    assert invalid_model_response.json()["error"]["message"] == "Model not found"
+    assert response.status_code == 404
+    assert response.json()["error"]["message"] == "Model not found"
 
-    balance_response = client.get("/balance/me", headers=auth_headers)
-    assert balance_response.status_code == 200
-    assert balance_response.json()["balance"] == 50
+
+def test_predict_invalid_model_does_not_charge_balance(client: TestClient, auth_headers: dict[str, str]):
+    client.post("/balance/me/top-up", json={"amount": 50}, headers=auth_headers)
+    client.post(
+        "/predict/me",
+        data={"model_id": "999", "task_name": "invalid-model"},
+        files={"image": ("formula.png", b"fake-image-content", "image/png")},
+        headers=auth_headers,
+    )
+    response = client.get("/balance/me", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["balance"] == 50
 
 
 def test_transaction_history_contains_top_up(client: TestClient, auth_headers: dict[str, str]):
@@ -237,7 +253,9 @@ def test_transaction_history_contains_charge(client: TestClient, auth_headers: d
     task_id = predict.json()["task_id"]
     client.post(f"/predict/{task_id}/result", json={"latex": "\\frac{a}{b}"})
 
-    transactions = client.get("/history/me/transactions", headers=auth_headers).json()
+    response = client.get("/history/me/transactions", headers=auth_headers)
+    assert response.status_code == 200
+    transactions = response.json()
     assert any(tx["transaction_type"] == "charge" and tx["task_id"] == task_id and tx["amount"] == 10 for tx in transactions)
 
 
@@ -252,5 +270,7 @@ def test_task_history_contains_completed_task(client: TestClient, auth_headers: 
     task_id = predict.json()["task_id"]
     client.post(f"/predict/{task_id}/result", json={"latex": "\\frac{a}{b}"})
 
-    tasks = client.get("/history/me/tasks", headers=auth_headers).json()
+    response = client.get("/history/me/tasks", headers=auth_headers)
+    assert response.status_code == 200
+    tasks = response.json()
     assert any(task["id"] == task_id and task["status"] == "completed" for task in tasks)
